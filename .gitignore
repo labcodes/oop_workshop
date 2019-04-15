@@ -1,0 +1,7 @@
+# OS X Stuff
+.DS_Store
+
+# Python Stuff
+*.pyc
+.env
+
