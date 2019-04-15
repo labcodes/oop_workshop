@@ -1,5 +1,6 @@
 from random import choice
 
+
 class SquareWithFilling(object):
     """
     This class models a virtual square to be filled by lines moving with random speeds along its edges.
@@ -9,17 +10,12 @@ class SquareWithFilling(object):
         """
         pos --> coordinate of the square's upper left corner
         size --> square's width and height size
-        p1, p2 --> filling lines positions placed on the edges
-        p1_edge, p2_edge --> edges where p1 and p2 are placed
-        p1_edge_percent, p2_edge_percent --> considering the start as 0 and the end as 1, this holds the percentual the point had already moved along the edge
-        p1_speed, p2_speed --> how fast the point will move over the edges
+        p1, p2 --> FillingVertex to control the filling
         """
         self.pos = PVector(x, y) 
         self.size = size
-        self.p1, self.p1_edge, self.p1_edge_percent = self.get_random_edge_position()
-        self.p2, self.p2_edge, self.p2_edge_percent = self.get_random_edge_position()
-        self.p1_speed = random(0.001, 0.01) # this is not Python's random module, but a Processing's method 
-        self.p2_speed = random(0.001, 0.01) # given a range of values, it returns a random value between the range
+        self.p1 = FillingVertex(choice(self.edges))
+        self.p2 = FillingVertex(choice(self.edges))
 
     @property
     def vertices(self):
@@ -47,14 +43,6 @@ class SquareWithFilling(object):
         v = self.vertices
         return [(v[i - 1], v[i]) for i in range(4)]
         
-    def get_random_edge_position(self):
-        """
-        Return a PVector object placed on an edge
-        """
-        edge = choice(self.edges)
-        percent = random(1)
-        return PVector.lerp(edge[0], edge[1], percent), edge, percent
-
     def get_subsequent_edge(self, edge):
         """
         Given an edge, returns the subsequent edge starting in the edge's end
@@ -62,41 +50,110 @@ class SquareWithFilling(object):
         index = self.edges.index(edge)
         next_index = (index + 1) % len(self.edges)
         return self.edges[next_index]
-
+    
+    def get_previous_edge(self, edge):
+        """
+        Given an edge, returns the subsequent edge starting in the edge's end
+        """
+        index = self.edges.index(edge)
+        return self.edges[index - 1]
+    
     def update(self):
         """
         This function is responsible to move the filling.
-        To do this we increase the point's edge_percent by the point speed
-        So, with a new percent, we calculate the PVector corresponding to that edge's percent
-        If the new percent is greater than 1, it means that the point had already covered all the edge
-        In that case, it means the point now has to be placed in the beginning of the next edge 
+        To do this we have to check if the point is able to move and, if not, place it on a new edge
+        If the point has a reverse direction, we have to get the previous edge and, if not, the next one 
         """
         
         # move P1
-        self.p1_edge_percent += self.p1_speed
-        if self.p1_edge_percent > 1:
-            self.p1_edge_percent = 0
-            self.p1_edge = self.get_subsequent_edge(self.p1_edge)
+        if not self.p1.can_move_on_edge():
+            if self.p1.reverse_direction:
+                new_edge = self.get_previous_edge(self.p1.edge)
+            else:
+                new_edge = self.get_subsequent_edge(self.p1.edge)
+            self.p1.place_on_new_edge(new_edge)
+        else:
+            self.p1.move()
             
-        edge = self.p1_edge
-        self.p1 = PVector.lerp(edge[0], edge[1], self.p1_edge_percent)
-
         # move P2
-        self.p2_edge_percent += self.p2_speed
-        if self.p2_edge_percent >= 1:
-            self.p2_edge_percent = 0
-            self.p2_edge = self.get_subsequent_edge(self.p2_edge)
+        if not self.p2.can_move_on_edge():
+            if self.p2.reverse_direction:
+                new_edge = self.get_previous_edge(self.p2.edge)
+            else:
+                new_edge = self.get_subsequent_edge(self.p2.edge)
+            self.p2.place_on_new_edge(new_edge)
+        else:
+            self.p2.move()
             
-        edge = self.p2_edge
-        self.p2 = PVector.lerp(edge[0], edge[1], self.p2_edge_percent)            
-
     def display(self):
         """
         Renders the filling
         """
         p1, p2 = self.p1, self.p2
-        stroke(27)
+        stroke(27, 27, 27)
         line(p1.x, p1.y, p2.x, p2.y)
+            
+
+class FillingVertex(object):
+    """
+    Class to model a vertex moving along an edge
+    """
+    
+    def __init__(self, edge):
+        """
+        edge --> current edge on which the vertex is placed
+        speed --> how fast the point will move
+        walked_percent --> to measure how far the point is from the edge start
+        reverse_direction --> flag to control on which direction the vertex should move 
+        """
+        self.edge = edge
+        self.speed = random(0.001, 0.01)
+        self.walked_percent = random(1)
+        self.reverse_direction = choice([True, False])
+        
+    @property
+    def pos(self):
+        """
+        Property to compute the current position of the vertex on the edge
+        If the vertex has a reverse direction, the percent should be applied from the edge end to its start
+        Returns a PVector object
+        """
+        start, end = self.edge
+        if self.reverse_direction:
+            start, end = end, start
+        return PVector.lerp(start, end, self.walked_percent)        
+        
+    @property
+    def x(self):
+        return self.pos.x
+           
+    @property
+    def y(self):
+        return self.pos.y
+        
+    def can_move_on_edge(self):
+        """
+        The walked percent is incremented by the vertex speed
+        If the sum is LEQ than 1, it means that the next position is still contained in the current edge
+        """
+        return self.walked_percent + self.speed <= 1
+        
+    def move(self):
+        """
+        Now to move a point is just a matter of to increase the walked_percent by a rate of the vertex's speed 
+        """
+        if not self.can_move_on_edge():
+            return
+        
+        self.walked_percent += self.speed
+        
+    def place_on_new_edge(self, edge):
+        """
+        When a vertex transpass the edge line (can_move_on_edge returns False) it should be placed at the begining of a new edge
+        This means we have to change the current edge and also set the walked percent to 0 so it can start to walk on the edge from its beginning
+        """
+        self.edge = edge
+        self.walked_percent = 0
 
 
 square_with_filling = SquareWithFilling(100, 100, 700)
