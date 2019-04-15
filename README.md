@@ -10,6 +10,10 @@ What the code does is:
   - it defines a virtual square
   - it moves 2 points, with random speeds, along the square's edges
   - it draws a line connecting the two points
-                                                                                                                                                                                                              :
+
 
 The workshop idea is to evolve this base structure in terms of new features that will force us to introduce changes. Those changes should lead us to discuss about OOP topics and strategies to implement them. After each round of coding, the team must get together and dicuss the different approaches used.
+
+## Installing Processing and the Python Mode
+
+Go to the [Processing download page](https://processing.org/download/) and download the proper version for your own operational system. After doing that, open Processing IDE and on the upper-right corner there should be a dropdown select with "Java" selected. Click there, then on "Add Mode...", select the "Python Mode for Processing 3" and install it. After it's done, you'll have to restart processing and select the Python mode instead of the Java one.
