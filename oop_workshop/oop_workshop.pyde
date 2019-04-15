@@ -1,4 +1,5 @@
 from random import choice
+from abc import ABCMeta, abstractmethod
 
 
 class SquareWithFilling(object):
@@ -6,7 +7,7 @@ class SquareWithFilling(object):
     This class models a virtual square to be filled by lines moving with random speeds along its edges.
     """
             
-    def __init__(self, x, y, size):
+    def __init__(self, x, y, size, filling):
         """
         pos --> coordinate of the square's upper left corner
         size --> square's width and height size
@@ -14,7 +15,8 @@ class SquareWithFilling(object):
         """
         self.pos = PVector(x, y) 
         self.size = size
-        self.filling = LinesShapeFilling(self.edges)
+        self.filling = filling
+        self.filling.configure(self.edges)
 
     @property
     def vertices(self):
@@ -49,17 +51,25 @@ class SquareWithFilling(object):
         self.filling.display()
         
         
-class LinesShapeFilling(object):
-    """
-    Class to control the filling using just lines
-    """
+class BaseShapeFilling(object):
+    __metaclass__ = ABCMeta
+    NUM_VERTEX = None  # should be defined by child classes as well
     
-    def __init__(self, edges, stroke_color=None):
+    @abstractmethod
+    def display(self):
+        pass
+    
+    def __init__(self, stroke_color=None):
+        self.edges, self.vertices = [], []
         self.stroke_color = stroke_color or color(27, 27, 27)
-        self.edges = edges
-        self.p1 = FillingVertex(choice(self.edges))
-        self.p2 = FillingVertex(choice(self.edges))
         
+    def configure(self, edges):
+        self.edges = edges
+        self.vertices = []
+        for i in range(self.NUM_VERTEX):
+            edge = choice(self.edges)
+            self.vertices.append(FillingVertex(edge))
+            
     def get_subsequent_edge(self, edge):
         """
         Given an edge, returns the subsequent edge starting in the edge's end
@@ -82,101 +92,38 @@ class LinesShapeFilling(object):
         If the point has a reverse direction, we have to get the previous edge and, if not, the next one 
         """
         
-        # move P1
-        if not self.p1.can_move_on_edge():
-            if self.p1.reverse_direction:
-                new_edge = self.get_previous_edge(self.p1.edge)
+        for filling_vertex in self.vertices:
+            if not filling_vertex.can_move_on_edge():
+                edge = filling_vertex.edge
+                if filling_vertex.reverse_direction:
+                    new_edge = self.get_previous_edge(edge)
+                else:
+                    new_edge = self.get_subsequent_edge(edge)
+                filling_vertex.place_on_new_edge(new_edge)
             else:
-                new_edge = self.get_subsequent_edge(self.p1.edge)
-            self.p1.place_on_new_edge(new_edge)
-        else:
-            self.p1.move()
-            
-        # move P2
-        if not self.p2.can_move_on_edge():
-            if self.p2.reverse_direction:
-                new_edge = self.get_previous_edge(self.p2.edge)
-            else:
-                new_edge = self.get_subsequent_edge(self.p2.edge)
-            self.p2.place_on_new_edge(new_edge)
-        else:
-            self.p2.move()
+                filling_vertex.move()
+
+        
+class LinesShapeFilling(BaseShapeFilling):
+    NUM_VERTEX = 2
             
     def display(self):
         """
         Renders the filling
         """
-        p1, p2 = self.p1, self.p2
+        p1, p2 = self.vertices
         stroke(self.stroke_color)
         line(p1.x, p1.y, p2.x, p2.y)
         
                  
-class TriangleShapeFilling(object):
-    """
-    Class to control the filling using triangles
-    """
-    
-    def __init__(self, edges, stroke_color=None):
-        self.stroke_color = stroke_color or color(27, 27, 27)
-        self.edges = edges
-        self.p1 = FillingVertex(choice(self.edges))
-        self.p2 = FillingVertex(choice(self.edges))
-        self.p3 = FillingVertex(choice(self.edges))
-        
-    def get_subsequent_edge(self, edge):
-        """
-        Given an edge, returns the subsequent edge starting in the edge's end
-        """
-        index = self.edges.index(edge)
-        next_index = (index + 1) % len(self.edges)
-        return self.edges[next_index]
-    
-    def get_previous_edge(self, edge):
-        """
-        Given an edge, returns the subsequent edge starting in the edge's end
-        """
-        index = self.edges.index(edge)
-        return self.edges[index - 1]
-    
-    def update(self):
-        """
-        This function is responsible to move the filling.
-        To do this we have to check if the point is able to move and, if not, move place it on a new edge
-        If the point has a reverse direction, we have to get the previous edge and, if not, the next one 
-        """
-        
-        if not self.p1.can_move_on_edge():
-            if self.p1.reverse_direction:
-                new_edge = self.get_previous_edge(self.p1.edge)
-            else:
-                new_edge = self.get_subsequent_edge(self.p1.edge)
-            self.p1.place_on_new_edge(new_edge)
-        else:
-            self.p1.move()
-            
-        if not self.p2.can_move_on_edge():
-            if self.p2.reverse_direction:
-                new_edge = self.get_previous_edge(self.p2.edge)
-            else:
-                new_edge = self.get_subsequent_edge(self.p2.edge)
-            self.p2.place_on_new_edge(new_edge)
-        else:
-            self.p2.move()
-            
-        if not self.p3.can_move_on_edge():
-            if self.p3.reverse_direction:
-                new_edge = self.get_previous_edge(self.p3.edge)
-            else:
-                new_edge = self.get_subsequent_edge(self.p3.edge)
-            self.p3.place_on_new_edge(new_edge)
-        else:
-            self.p3.move()
-            
+class TriangleShapeFilling(BaseShapeFilling):
+    NUM_VERTEX = 3
+                
     def display(self):
         """
         Renders the filling
         """
-        p1, p2, p3 = self.p1, self.p2, self.p3
+        p1, p2, p3 = self.vertices
         stroke(self.stroke_color)
         noFill()
         triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)         
@@ -209,7 +156,7 @@ class FillingVertex(object):
         start, end = self.edge
         if self.reverse_direction:
             start, end = end, start
-        return PVector.lerp(start, end, self.walked_percent)        
+        return PVector.lerp(start, end, self.walked_percent)
         
     @property
     def x(self):
@@ -244,7 +191,7 @@ class FillingVertex(object):
         self.walked_percent = 0
 
 
-square_with_filling = SquareWithFilling(100, 100, 700)
+square_with_filling = SquareWithFilling(100, 100, 700, LinesShapeFilling())
 def setup():
     size(900, 900)
     background(242)
@@ -259,7 +206,6 @@ def keyPressed():
     
     background(242)
     if key == 'l':
-        square_with_filling = SquareWithFilling(100, 100, 700)
+        square_with_filling = SquareWithFilling(100, 100, 700, LinesShapeFilling())
     elif key == 't':
-        square_with_filling = SquareWithFilling(100, 100, 700)
-        square_with_filling.filling = TriangleShapeFilling(square_with_filling.edges)
+        square_with_filling = SquareWithFilling(100, 100, 700, TriangleShapeFilling())
