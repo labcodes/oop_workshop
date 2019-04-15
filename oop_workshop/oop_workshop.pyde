@@ -10,12 +10,11 @@ class SquareWithFilling(object):
         """
         pos --> coordinate of the square's upper left corner
         size --> square's width and height size
-        p1, p2 --> FillingVertex to control the filling
+        filling --> object responsible to render and control the square filling
         """
         self.pos = PVector(x, y) 
         self.size = size
-        self.p1 = FillingVertex(choice(self.edges))
-        self.p2 = FillingVertex(choice(self.edges))
+        self.filling = LinesShapeFilling(self.edges)
 
     @property
     def vertices(self):
@@ -42,6 +41,24 @@ class SquareWithFilling(object):
         """
         v = self.vertices
         return [(v[i - 1], v[i]) for i in range(4)]
+          
+    def update(self):
+        self.filling.update()
+    
+    def display(self):
+        self.filling.display()
+        
+        
+class LinesShapeFilling(object):
+    """
+    Class to control the filling using just lines
+    """
+    
+    def __init__(self, edges, stroke_color=None):
+        self.stroke_color = stroke_color or color(27, 27, 27)
+        self.edges = edges
+        self.p1 = FillingVertex(choice(self.edges))
+        self.p2 = FillingVertex(choice(self.edges))
         
     def get_subsequent_edge(self, edge):
         """
@@ -90,9 +107,80 @@ class SquareWithFilling(object):
         Renders the filling
         """
         p1, p2 = self.p1, self.p2
-        stroke(27, 27, 27)
+        stroke(self.stroke_color)
         line(p1.x, p1.y, p2.x, p2.y)
+        
+                 
+class TriangleShapeFilling(object):
+    """
+    Class to control the filling using triangles
+    """
+    
+    def __init__(self, edges, stroke_color=None):
+        self.stroke_color = stroke_color or color(27, 27, 27)
+        self.edges = edges
+        self.p1 = FillingVertex(choice(self.edges))
+        self.p2 = FillingVertex(choice(self.edges))
+        self.p3 = FillingVertex(choice(self.edges))
+        
+    def get_subsequent_edge(self, edge):
+        """
+        Given an edge, returns the subsequent edge starting in the edge's end
+        """
+        index = self.edges.index(edge)
+        next_index = (index + 1) % len(self.edges)
+        return self.edges[next_index]
+    
+    def get_previous_edge(self, edge):
+        """
+        Given an edge, returns the subsequent edge starting in the edge's end
+        """
+        index = self.edges.index(edge)
+        return self.edges[index - 1]
+    
+    def update(self):
+        """
+        This function is responsible to move the filling.
+        To do this we have to check if the point is able to move and, if not, move place it on a new edge
+        If the point has a reverse direction, we have to get the previous edge and, if not, the next one 
+        """
+        
+        if not self.p1.can_move_on_edge():
+            if self.p1.reverse_direction:
+                new_edge = self.get_previous_edge(self.p1.edge)
+            else:
+                new_edge = self.get_subsequent_edge(self.p1.edge)
+            self.p1.place_on_new_edge(new_edge)
+        else:
+            self.p1.move()
             
+        if not self.p2.can_move_on_edge():
+            if self.p2.reverse_direction:
+                new_edge = self.get_previous_edge(self.p2.edge)
+            else:
+                new_edge = self.get_subsequent_edge(self.p2.edge)
+            self.p2.place_on_new_edge(new_edge)
+        else:
+            self.p2.move()
+            
+        if not self.p3.can_move_on_edge():
+            if self.p3.reverse_direction:
+                new_edge = self.get_previous_edge(self.p3.edge)
+            else:
+                new_edge = self.get_subsequent_edge(self.p3.edge)
+            self.p3.place_on_new_edge(new_edge)
+        else:
+            self.p3.move()
+            
+    def display(self):
+        """
+        Renders the filling
+        """
+        p1, p2, p3 = self.p1, self.p2, self.p3
+        stroke(self.stroke_color)
+        noFill()
+        triangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y)         
+
 
 class FillingVertex(object):
     """
@@ -164,3 +252,14 @@ def setup():
 def draw():
     square_with_filling.update()
     square_with_filling.display()
+    
+    
+def keyPressed():
+    global square_with_filling
+    
+    background(242)
+    if key == 'l':
+        square_with_filling = SquareWithFilling(100, 100, 700)
+    elif key == 't':
+        square_with_filling = SquareWithFilling(100, 100, 700)
+        square_with_filling.filling = TriangleShapeFilling(square_with_filling.edges)
