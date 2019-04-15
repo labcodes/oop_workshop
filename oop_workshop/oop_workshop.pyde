@@ -7,14 +7,16 @@ class SquareWithFilling(object):
     This class models a virtual square to be filled by lines moving with random speeds along its edges.
     """
             
-    def __init__(self, x, y, size, filling):
+    def __init__(self, x, y, size, filling, edge_class=None):
         """
         pos --> coordinate of the square's upper left corner
         size --> square's width and height size
-        filling --> object responsible to render and control the square filling
+        filling --> an object responsible for the filling logic and rendering
+        edge_class (defaults to StraigthEdge) --> class to be used when returning the edges
         """
         self.pos = PVector(x, y) 
         self.size = size
+        self.edge_class = edge_class or StraigthEdge
         self.filling = filling
         self.filling.configure(self.edges)
 
@@ -42,7 +44,7 @@ class SquareWithFilling(object):
         Returns a list of tuples representing (edge_start, edge_end)
         """
         v = self.vertices
-        return [(v[i - 1], v[i]) for i in range(4)]
+        return [self.edge_class(v[i - 1], v[i]) for i in range(4)]
           
     def update(self):
         self.filling.update()
@@ -50,6 +52,44 @@ class SquareWithFilling(object):
     def display(self):
         self.filling.display()
         
+        
+class StraigthEdge(object):
+    
+    def __init__(self, start, end):
+        self.start, self.end = start, end
+
+    def get_position_at(self, percent, reversed=False):
+        start, end = self.start, self.end
+        if reversed:
+            start, end = end, start
+        return PVector.lerp(start, end, percent)        
+
+        
+class CurvedEdge(object):
+    
+    def __init__(self, start, end):
+        control_points_range = [-300, 300]
+        self.start = start
+        self.end = end
+        self.start_control_point = PVector(
+            self.start.x + random(*control_points_range),
+            self.start.y + random(*control_points_range),
+        )
+        self.end_control_point = PVector(
+            self.end.x + random(*control_points_range),
+            self.end.y + random(*control_points_range),
+        )
+        
+    def get_position_at(self, percent, reversed=False):
+        start, end = self.start, self.end
+        start_cp, end_cp = self.start_control_point, self.end_control_point 
+        if reversed:
+            start, end = end, start
+            start_cp, end_cp = end_cp, start_cp
+        x = bezierPoint(start.x, start_cp.x, end_cp.x, end.x, percent)
+        y = bezierPoint(start.y, start_cp.y, end_cp.y, end.y, percent)
+        return PVector(x, y)
+    
         
 class BaseShapeFilling(object):
     __metaclass__ = ABCMeta
@@ -153,10 +193,7 @@ class FillingVertex(object):
         If the vertex has a reverse direction, the percent should be applied from the edge end to its start
         Returns a PVector object
         """
-        start, end = self.edge
-        if self.reverse_direction:
-            start, end = end, start
-        return PVector.lerp(start, end, self.walked_percent)
+        return self.edge.get_position_at(self.walked_percent, reversed=self.reverse_direction)
         
     @property
     def x(self):
@@ -204,8 +241,16 @@ def draw():
 def keyPressed():
     global square_with_filling
     
-    background(242)
-    if key == 'l':
-        square_with_filling = SquareWithFilling(100, 100, 700, LinesShapeFilling())
-    elif key == 't':
-        square_with_filling = SquareWithFilling(100, 100, 700, TriangleShapeFilling())
+    if key == 's':
+        saveFrame("######.png")
+    else:
+        background(242)
+        if key == 'l':
+            square_with_filling = SquareWithFilling(100, 100, 700, LinesShapeFilling())
+        elif key == 't':
+            square_with_filling = SquareWithFilling(100, 100, 700, TriangleShapeFilling())
+        if key == 'L':
+            square_with_filling = SquareWithFilling(100, 100, 700, LinesShapeFilling(color(27, 27, 27, 80)), CurvedEdge)
+        elif key == 'T':
+            square_with_filling = SquareWithFilling(100, 100, 700, TriangleShapeFilling(), CurvedEdge)    
+        
